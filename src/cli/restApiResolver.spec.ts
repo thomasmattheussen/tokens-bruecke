@@ -37,12 +37,15 @@ describe('rectangleNodeToPaint', () => {
   });
 });
 
-const resolverWith = (variables: Record<string, any>) => {
+const resolverWith = (
+  variables: Record<string, any>,
+  variableCollections: Record<string, any> = {}
+) => {
   const resolver = new RestAPIResolver('file-key', 'token');
 
   (resolver as any).api = {
     getLocalVariables: async () => ({
-      meta: { variables, variableCollections: {} },
+      meta: { variables, variableCollections },
     }),
   };
 
@@ -51,7 +54,7 @@ const resolverWith = (variables: Record<string, any>) => {
 
 const variable = (id: string, resolvedType: string, scopes: string[]) => ({
   id,
-  name: `weight/${id}`,
+  name: `variable/${id}`,
   resolvedType,
   scopes,
   remote: false,
@@ -95,5 +98,59 @@ describe('getLocalVariables scopes', () => {
       ['FONT_WEIGHT'],
       ['ALL_FILLS'],
     ]);
+  });
+});
+
+describe('order', () => {
+  const named = (id: string, name: string) => ({
+    ...variable(id, 'FLOAT', ['ALL_SCOPES']),
+    name,
+  });
+
+  it('returns variables sorted by name, whatever order the API used', async () => {
+    const one = {
+      c: named('c', 'space/large'),
+      a: named('a', 'color/brand'),
+      b: named('b', 'space/small'),
+    };
+    const other = {
+      b: one.b,
+      c: one.c,
+      a: one.a,
+    };
+
+    const names = async (variables: Record<string, any>) =>
+      (await resolverWith(variables).getLocalVariables()).map((v) => v.name);
+
+    expect(await names(one)).toEqual([
+      'color/brand',
+      'space/large',
+      'space/small',
+    ]);
+    expect(await names(other)).toEqual(await names(one));
+  });
+
+  it('breaks ties between equal names by id', async () => {
+    const variables = await resolverWith({
+      b: named('b', 'same'),
+      a: named('a', 'same'),
+    }).getLocalVariables();
+
+    expect(variables.map((v) => v.id)).toEqual(['a', 'b']);
+  });
+
+  it('returns collections sorted by name', async () => {
+    const collection = (id: string, name: string) => ({
+      id,
+      name,
+      remote: false,
+      hiddenFromPublishing: false,
+    });
+    const collections = await resolverWith(
+      {},
+      { 2: collection('2', 'wl'), 1: collection('1', 'surface') }
+    ).getLocalVariableCollections();
+
+    expect(collections.map((c) => c.name)).toEqual(['surface', 'wl']);
   });
 });
