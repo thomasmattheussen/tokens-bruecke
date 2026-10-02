@@ -24,8 +24,9 @@ const normalizeScopes = (variable: LocalVariable): LocalVariable['scopes'] =>
     : variable.scopes;
 
 /**
- * The REST API does not return variables and collections in a fixed order, so
- * they are sorted to make exporting an unchanged file give identical output.
+ * The REST API does not return variables, collections or the `variableIds` of
+ * a collection in a fixed order, so they are sorted to make exporting an
+ * unchanged file give identical output.
  */
 const byNameThenId = (
   a: { name: string; id: string },
@@ -133,7 +134,17 @@ export class RestAPIResolver implements IResolver {
 
   async getLocalVariableCollections(): Promise<VariableCollection[]> {
     await this.fetchLocalVariables();
-    return Object.values(this.variableCollections).sort(byNameThenId);
+    return Object.values(this.variableCollections)
+      .sort(byNameThenId)
+      .map((collection) => ({
+        ...collection,
+        variableIds: [...(collection.variableIds ?? [])].sort((a, b) =>
+          byNameThenId(
+            this.variables[a] ?? { name: '', id: a },
+            this.variables[b] ?? { name: '', id: b }
+          )
+        ),
+      }));
   }
 
   async getLocalVariables(): Promise<Variable[]> {

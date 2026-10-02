@@ -153,4 +153,23 @@ describe('order', () => {
 
     expect(collections.map((c) => c.name)).toEqual(['surface', 'wl']);
   });
+
+  it('returns the variableIds of a collection sorted by variable name', async () => {
+    const variables = {
+      c: { ...named('c', 'space/large'), variableCollectionId: '1' },
+      a: { ...named('a', 'color/brand'), variableCollectionId: '1' },
+      b: { ...named('b', 'space/small'), variableCollectionId: '1' },
+    };
+    const [collection] = await resolverWith(variables, {
+      1: {
+        id: '1',
+        name: 'wl',
+        remote: false,
+        hiddenFromPublishing: false,
+        variableIds: ['b', 'c', 'a'],
+      },
+    }).getLocalVariableCollections();
+
+    expect(collection.variableIds).toEqual(['a', 'c', 'b']);
+  });
 });
